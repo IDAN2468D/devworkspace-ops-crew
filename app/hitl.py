@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -23,7 +23,7 @@ class HITLApprovalService:
     def enqueue(
         self, agent_name: str, action_type: str, summary: str, payload: dict[str, Any]
     ) -> PendingAction:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         record = PendingActionModel(
             action_id=str(uuid4())[:8],
             agent_name=agent_name,
@@ -66,7 +66,7 @@ class HITLApprovalService:
                 raise ValueError(f"Action '{action_id}' is already '{record.status}'")
 
             record.decision_note = note
-            record.updated_at = datetime.now(timezone.utc)
+            record.updated_at = datetime.now(UTC)
 
             if not approve:
                 record.status = ActionStatus.REJECTED.value

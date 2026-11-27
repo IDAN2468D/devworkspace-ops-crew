@@ -1,12 +1,12 @@
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class ActionStatus(str, Enum):
+class ActionStatus(StrEnum):
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
@@ -52,8 +52,8 @@ class PendingAction(BaseModel):
     status: ActionStatus = ActionStatus.PENDING
     decision_note: str | None = None
     execution_result: dict[str, Any] | None = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class OpsRunRequest(BaseModel):
@@ -113,5 +113,5 @@ class DomainEvent(BaseModel):
     event_id: str = Field(default_factory=lambda: str(uuid4()))
     event_type: str
     source_service: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     payload: dict[str, Any] = Field(default_factory=dict)

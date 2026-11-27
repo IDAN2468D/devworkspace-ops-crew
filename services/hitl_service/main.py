@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -56,7 +56,7 @@ def health() -> dict[str, Any]:
 
 @app.post("/api/v1/hitl/enqueue", response_model=PendingAction)
 async def enqueue_action(req: EnqueueActionRequest) -> PendingAction:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     record = PendingActionModel(
         action_id=str(uuid4())[:8],
         agent_name=req.agent_name,
@@ -116,7 +116,7 @@ async def decide_action(action_id: str, decision: ApprovalDecision) -> PendingAc
             )
 
         record.decision_note = decision.note
-        record.updated_at = datetime.now(timezone.utc)
+        record.updated_at = datetime.now(UTC)
 
         if not decision.approve:
             record.status = ActionStatus.REJECTED.value

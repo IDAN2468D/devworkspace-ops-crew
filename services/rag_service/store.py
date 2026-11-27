@@ -87,7 +87,7 @@ class DriveRAGStore:
                 text=text,
                 distance=round(float(dist), 4) if dist is not None else None,
             )
-            for chunk_id, text, meta, dist in zip(ids, docs, metas, distances)
+            for chunk_id, text, meta, dist in zip(ids, docs, metas, distances, strict=False)
         ]
 
     def seed_sample_specs_if_empty(self) -> list[dict[str, Any]]:

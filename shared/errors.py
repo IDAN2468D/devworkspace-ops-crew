@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -18,7 +18,7 @@ def register_error_handlers(app: FastAPI, service_name: str) -> None:
                     "detail": exc.detail,
                     "service": service_name,
                     "path": request.url.path,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 },
                 "detail": exc.detail,
             },
@@ -36,7 +36,7 @@ def register_error_handlers(app: FastAPI, service_name: str) -> None:
                     "detail": exc.errors(),
                     "service": service_name,
                     "path": request.url.path,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 },
                 "detail": exc.errors(),
             },
@@ -52,7 +52,7 @@ def register_error_handlers(app: FastAPI, service_name: str) -> None:
                     "detail": str(exc),
                     "service": service_name,
                     "path": request.url.path,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 },
                 "detail": "Internal server error",
             },
