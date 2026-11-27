@@ -1,7 +1,7 @@
 import json
 import secrets
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
@@ -64,7 +64,7 @@ register_error_handlers(app, settings.service_name)
 
 
 def _create_jwt(user: UserModel) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": user.user_id,
         "google_sub": user.google_sub,
@@ -204,7 +204,7 @@ async def google_callback(
     email = str(userinfo["email"])
     name = str(userinfo.get("name") or email.split("@")[0])
     picture_url = userinfo.get("picture")
-    expires_at = datetime.now(timezone.utc) + timedelta(
+    expires_at = datetime.now(UTC) + timedelta(
         seconds=int(token_data.get("expires_in", 3600))
     )
 
@@ -233,7 +233,7 @@ async def google_callback(
                 user.google_refresh_token = token_data["refresh_token"]
             user.google_scopes = token_data.get("scope", user.google_scopes)
             user.token_expires_at = expires_at
-            user.updated_at = datetime.now(timezone.utc)
+            user.updated_at = datetime.now(UTC)
 
         session.commit()
         session.refresh(user)

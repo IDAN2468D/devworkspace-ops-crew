@@ -82,7 +82,7 @@ class DriveRAGStore:
         distances = raw.get("distances", [[]])[0]
 
         results: list[RAGChunk] = []
-        for chunk_id, text, meta, dist in zip(ids, docs, metas, distances):
+        for chunk_id, text, meta, dist in zip(ids, docs, metas, distances, strict=False):
             results.append(
                 RAGChunk(
                     chunk_id=chunk_id,
