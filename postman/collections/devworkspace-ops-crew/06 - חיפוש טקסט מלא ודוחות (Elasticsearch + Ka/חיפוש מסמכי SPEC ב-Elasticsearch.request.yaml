@@ -1,0 +1,18 @@
+$kind: http-request
+description: חיפוש טקסט מלא (multi_match + fuzziness + highlight) באינדקס ops-specs של Elasticsearch.
+url: "{{gateway_url}}/api/v1/search/specs?q=Kafka Elasticsearch&project={{project}}&size=10"
+method: GET
+queryParams:
+  q: Kafka Elasticsearch
+  project: "{{project}}"
+  size: "10"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('חיפוש Elasticsearch החזיר תשובה תקינה', function () {
+          pm.response.to.have.status(200);
+          const data = pm.response.json();
+          pm.expect(data).to.have.property('hits');
+      });
+    language: text/javascript
+order: 1000

@@ -1,0 +1,3 @@
+$kind: collection
+description: בדיקת תקינות מרוכזת דרך ה-API Gateway ובדיקה ישירה מול Elasticsearch.
+order: 1000

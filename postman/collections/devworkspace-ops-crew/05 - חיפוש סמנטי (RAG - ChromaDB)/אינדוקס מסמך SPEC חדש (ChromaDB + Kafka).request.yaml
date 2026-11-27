@@ -1,0 +1,25 @@
+$kind: http-request
+description: מפרק את המסמך לחלקים (Chunks), שומר ב-ChromaDB, ומפרסם rag.document.ingested ל-Kafka כך ש-search-service מאנדקס אותו מיידית ב-Elasticsearch.
+url: "{{gateway_url}}/api/v1/rag/ingest"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "doc_id": "spec_microservices_001",
+      "title": "Microservices_Kafka_Elasticsearch_SPEC.md",
+      "project": "{{project}}",
+      "content": "DevWorkspace Ops Crew runs 6 FastAPI microservices behind an API Gateway, streaming domain events through Apache Kafka with real-time Elasticsearch indexing and reporting."
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('המסמך אונדקס בהצלחה ב-RAG ופורסם ל-Kafka', function () {
+          pm.response.to.have.status(200);
+          const data = pm.response.json();
+          pm.expect(data.chunks_indexed).to.be.above(0);
+      });
+    language: text/javascript
+order: 1000

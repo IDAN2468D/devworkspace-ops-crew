@@ -1,0 +1,3 @@
+$kind: collection
+description: אינדוקס מסמכי SPEC ב-ChromaDB (שגם מזרים אירוע ל-Kafka -> Elasticsearch) וחיפוש סמנטי וקטורי.
+order: 5000

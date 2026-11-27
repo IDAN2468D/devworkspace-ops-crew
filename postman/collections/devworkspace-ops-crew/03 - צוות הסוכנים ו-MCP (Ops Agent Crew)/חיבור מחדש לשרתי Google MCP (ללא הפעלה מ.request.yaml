@@ -1,0 +1,6 @@
+$kind: http-request
+name: חיבור מחדש לשרתי Google MCP (ללא הפעלה מחדש)
+description: מחבר מחדש את שרתי ה-MCP של Gmail ו-Drive לאחר התחברות Google (דורש Bearer JWT).
+url: "{{gateway_url}}/api/v1/mcp/google/reconnect"
+method: POST
+order: 2000

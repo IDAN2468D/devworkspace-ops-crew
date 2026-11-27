@@ -1,0 +1,13 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+COPY services/rag_service/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY shared ./shared
+COPY services/__init__.py ./services/__init__.py
+COPY services/rag_service ./services/rag_service
+
+RUN mkdir -p /app/data/chroma
+EXPOSE 8003
+CMD ["uvicorn", "services.rag_service.main:app", "--host", "0.0.0.0", "--port", "8003"]

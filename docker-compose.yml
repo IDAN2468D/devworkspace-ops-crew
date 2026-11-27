@@ -1,0 +1,218 @@
+services:
+  # ============================================================
+  # Infrastructure: PostgreSQL, Apache Kafka (KRaft), Kafka UI, Elasticsearch
+  # ============================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: devworkspace-postgres
+    environment:
+      POSTGRES_USER: ops_user
+      POSTGRES_PASSWORD: ops_password
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init-dbs.sql:/docker-entrypoint-initdb.d/init-dbs.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ops_user -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: devworkspace-kafka
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: devworkspace-kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: devworkspace-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: devworkspace-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms256m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  # ============================================================
+  # Microservices
+  # ============================================================
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth_service/Dockerfile
+    container_name: devworkspace-auth-service
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://ops_user:ops_password@postgres:5432/auth_db
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      GOOGLE_USER_TOKEN_PATH: /app/secrets/google_user_token.json
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./secrets:/app/secrets
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  hitl-service:
+    build:
+      context: .
+      dockerfile: services/hitl_service/Dockerfile
+    container_name: devworkspace-hitl-service
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://ops_user:ops_password@postgres:5432/hitl_db
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  rag-service:
+    build:
+      context: .
+      dockerfile: services/rag_service/Dockerfile
+    container_name: devworkspace-rag-service
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      CHROMA_PERSIST_DIR: /app/data/chroma
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8003:8003"
+    volumes:
+      - chroma_data:/app/data/chroma
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  ops-agent-service:
+    build:
+      context: .
+      dockerfile: services/ops_agent_service/Dockerfile
+    container_name: devworkspace-ops-agent-service
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      HITL_SERVICE_URL: http://hitl-service:8002
+      RAG_SERVICE_URL: http://rag-service:8003
+      SEARCH_SERVICE_URL: http://search-service:8005
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      GOOGLE_OAUTH_CREDENTIALS_PATH: /app/secrets/gdrive-oauth.json
+      GOOGLE_USER_TOKEN_PATH: /app/secrets/google_user_token.json
+    ports:
+      - "8004:8004"
+    volumes:
+      - ./secrets:/app/secrets:ro
+    depends_on:
+      hitl-service:
+        condition: service_started
+      rag-service:
+        condition: service_started
+      search-service:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+
+  search-service:
+    build:
+      context: .
+      dockerfile: services/search_service/Dockerfile
+    container_name: devworkspace-search-service
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ELASTICSEARCH_ENABLED: "true"
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8005:8005"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api_gateway/Dockerfile
+    container_name: devworkspace-api-gateway
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:8001
+      HITL_SERVICE_URL: http://hitl-service:8002
+      RAG_SERVICE_URL: http://rag-service:8003
+      OPS_AGENT_SERVICE_URL: http://ops-agent-service:8004
+      SEARCH_SERVICE_URL: http://search-service:8005
+    ports:
+      - "8000:8000"
+    depends_on:
+      - auth-service
+      - hitl-service
+      - rag-service
+      - ops-agent-service
+      - search-service
+
+volumes:
+  postgres_data:
+  chroma_data:
+  es_data:

@@ -1,0 +1,21 @@
+name: DevWorkspace Ops Crew — סביבה מקומית (Docker)
+values:
+  - key: gateway_url
+    value: http://127.0.0.1:8000
+    enabled: true
+  - key: elasticsearch_url
+    value: http://127.0.0.1:9200
+    enabled: true
+  - key: kafka_ui_url
+    value: http://127.0.0.1:8080
+    enabled: true
+  - key: project
+    value: devworkspace-ops-crew
+    enabled: true
+  - key: jwt_token
+    value: ""
+    type: secret
+    enabled: true
+  - key: action_id
+    value: ""
+    enabled: true

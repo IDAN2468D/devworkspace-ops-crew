@@ -1,0 +1,14 @@
+$kind: http-request
+description: מחזיר סיכום כמויות של מסמכים ואירועים לפי סוג אירוע.
+url: "{{gateway_url}}/api/v1/search/reports/summary"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('התקבל דוח סיכום תקין', function () {
+          pm.response.to.have.status(200);
+          const data = pm.response.json();
+          pm.expect(data).to.have.property('indexed_events');
+      });
+    language: text/javascript
+order: 3000

@@ -1,0 +1,21 @@
+$kind: collection
+id: d7e8a910-4c21-4f88-9b11-devworkspace-ops-crew
+name: DevWorkspace Ops Crew — מיקרוסרוויסים (בעברית)
+description: |-
+  אוסף בקשות מלא ומסודר עבור ארכיטקטורת המיקרוסרוויסים של DevWorkspace Ops Crew: API Gateway, Auth (Google OAuth + JWT), Ops Agent Crew (Agno + MCP), HITL Gate, RAG (ChromaDB), ו-Search Service (Kafka -> Elasticsearch).
+
+  הוראות שימוש:
+  1. ייבא גם את קובץ הסביבה DevWorkspace_Local.postman_environment.json ובחר אותו בפינה הימנית העליונה.
+  2. הרם את המערכת עם docker compose up --build.
+  3. התחל מתיקיית '01 - בדיקות תקינות' והתקדם לפי הסדר. מזהים כמו action_id נשמרים אוטומטית בסביבה.
+auth:
+  - id: c80df493-a7b2-4219-b951-393aa60e32fa
+    type: bearer
+    name: bearer auth
+    credentials:
+      token: "{{jwt_token}}"
+variables:
+  gateway_url: http://127.0.0.1:8000
+  elasticsearch_url: http://127.0.0.1:9200
+  kafka_ui_url: http://127.0.0.1:8080
+  project: devworkspace-ops-crew

@@ -1,0 +1,531 @@
+{
+  "info": {
+    "_postman_id": "d7e8a910-4c21-4f88-9b11-devworkspace-ops-crew",
+    "name": "DevWorkspace Ops Crew — מיקרוסרוויסים (בעברית)",
+    "description": "אוסף בקשות מלא ומסודר עבור ארכיטקטורת המיקרוסרוויסים של DevWorkspace Ops Crew: API Gateway, Auth (Google OAuth + JWT), Ops Agent Crew (Agno + MCP), HITL Gate, RAG (ChromaDB), ו-Search Service (Kafka -> Elasticsearch).\n\nהוראות שימוש:\n1. ייבא גם את קובץ הסביבה DevWorkspace_Local.postman_environment.json ובחר אותו בפינה הימנית העליונה.\n2. הרם את המערכת עם docker compose up --build.\n3. התחל מתיקיית '01 - בדיקות תקינות' והתקדם לפי הסדר. מזהים כמו action_id נשמרים אוטומטית בסביבה.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "01 - בדיקות תקינות (Health Checks)",
+      "description": "בדיקת תקינות מרוכזת דרך ה-API Gateway ובדיקה ישירה מול Elasticsearch.",
+      "item": [
+        {
+          "name": "בדיקת תקינות כללית (API Gateway + כל 5 השירותים)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('סטטוס 200 תקין', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('ה-API Gateway פעיל ומחזיר מצב שירותים', function () {",
+                  "    const data = pm.response.json();",
+                  "    pm.expect(data.status).to.eql('ok');",
+                  "    pm.expect(data).to.have.property('services');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/health",
+              "host": ["{{gateway_url}}"],
+              "path": ["health"]
+            },
+            "description": "מחזיר את מצב הבריאות של ה-API Gateway ושל כל 5 המיקרוסרוויסים (auth, hitl, rag, ops-agent, search)."
+          }
+        },
+        {
+          "name": "בדיקת תקינות אשכול Elasticsearch",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Elasticsearch זמין ותקין', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{elasticsearch_url}}/_cluster/health",
+              "host": ["{{elasticsearch_url}}"],
+              "path": ["_cluster", "health"]
+            },
+            "description": "בדיקה ישירה מול Elasticsearch בפורט 9200."
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - התחברות ואבטחה (Auth & Google OAuth)",
+      "description": "תהליך התחברות והרשמה עם Google OAuth 2.0, הנפקת JWT ושמירת Cookie מאובטח.",
+      "item": [
+        {
+          "name": "קבלת כתובת התחברות Google OAuth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('התקבל קישור התחברות תקין', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const data = pm.response.json();",
+                  "    pm.expect(data).to.have.property('auth_url');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/auth/google/login",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "auth", "google", "login"]
+            },
+            "description": "מחזיר auth_url לפתיחה בדפדפן עבור התחברות Google ושמירת טוקני MCP."
+          }
+        },
+        {
+          "name": "פרטי המשתמש המחובר (/me)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/auth/me",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "מחזיר את פרופיל המשתמש המחובר ואת סטטוס חיבור Google MCP (דורש JWT או ops_session Cookie)."
+          }
+        },
+        {
+          "name": "התנתקות (Logout)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/auth/logout",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            },
+            "description": "מוחק את ה-Cookie של הסשן (ops_session)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - צוות הסוכנים ו-MCP (Ops Agent Crew)",
+      "description": "הפעלת OpsSupervisor (Gmail, Drive + RAG/Elasticsearch, GitHub) וחיבור מחדש של שרתי MCP.",
+      "item": [
+        {
+          "name": "הרצת בריף בוקר (OpsSupervisor)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('הרצת צוות הסוכנים הצליחה', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const data = pm.response.json();",
+                  "    pm.expect(data).to.have.property('supervisor_output');",
+                  "    if (data.pending_actions && data.pending_actions.length > 0) {",
+                  "        pm.environment.set('action_id', data.pending_actions[0].action_id);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"הכן לי בריף בוקר מהמיילים, הדרייב (כולל חיפוש SPEC ב-RAG ו-Elasticsearch) ו-GitHub, והצע פעולות נדרשות.\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/ops/run",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "ops", "run"]
+            },
+            "description": "מפעיל את צוות הסוכנים, מפרסם אירוע ops.run.completed ל-Kafka, ומחזיר בריף + רשימת פעולות HITL ממתינות."
+          }
+        },
+        {
+          "name": "חיבור מחדש לשרתי Google MCP (ללא הפעלה מחדש)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/mcp/google/reconnect",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "mcp", "google", "reconnect"]
+            },
+            "description": "מחבר מחדש את שרתי ה-MCP של Gmail ו-Drive לאחר התחברות Google (דורש Bearer JWT)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - שער אישורים אנושי (HITL Gate)",
+      "description": "ניהול פעולות כתיבה ממתינות לאישור אנושי (טיוטות מייל, סידור קבצים ב-Drive, פתיחת GitHub Issues) עם פרסום אירועים ל-Kafka.",
+      "item": [
+        {
+          "name": "הפקדת פעולה חדשה לתור האישורים (בדיקה)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('הפעולה נשמרה בתור ה-HITL ופורסם אירוע Kafka', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const data = pm.response.json();",
+                  "    pm.expect(data.status).to.eql('pending');",
+                  "    pm.environment.set('action_id', data.action_id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agent_name\": \"GitHubDevOpsAgent\",\n  \"action_type\": \"github_issue\",\n  \"summary\": \"פתיחת Issue חדש על כישלון בדיקות CI\",\n  \"payload\": {\n    \"repo\": \"IDAN2468D/mcp-ai-ide-core\",\n    \"title\": \"Fix failing CI test_hitl_gate.py\",\n    \"body\": \"זוהה כישלון ב-CI לאחר PR #14. נדרש תיקון.\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/hitl/enqueue",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "hitl", "enqueue"]
+            },
+            "description": "מפקיד פעולה חדשה לתור ה-HITL, שומר את ה-action_id אוטומטית במשתנה הסביבה, ומפרסם hitl.action.requested ל-Kafka."
+          }
+        },
+        {
+          "name": "רשימת כל הפעולות הממתינות לאישור",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('התקבלה רשימת פעולות ממתינות', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const list = pm.response.json();",
+                  "    pm.expect(list).to.be.an('array');",
+                  "    if (list.length > 0) {",
+                  "        pm.environment.set('action_id', list[0].action_id);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/hitl/pending",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "hitl", "pending"]
+            },
+            "description": "שולף את כל הפעולות בסטטוס pending ממסד הנתונים hitl_db."
+          }
+        },
+        {
+          "name": "צפייה בפרטי פעולה לפי מזהה",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/hitl/{{action_id}}",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "hitl", "{{action_id}}"]
+            },
+            "description": "שולף פעולה ספציפית לפי action_id."
+          }
+        },
+        {
+          "name": "אישור והרצת פעולה (Approve)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('הפעולה אושרה ובוצעה בהצלחה', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const data = pm.response.json();",
+                  "    pm.expect(data.status).to.eql('executed');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approve\": true,\n  \"note\": \"מאושר לביצוע מיידי\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/hitl/{{action_id}}/decide",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "hitl", "{{action_id}}", "decide"]
+            },
+            "description": "מאשר את הפעולה, מריץ את ה-Write Handler המתאים, ומפרסם hitl.action.decided ל-Kafka."
+          }
+        },
+        {
+          "name": "דחיית פעולה (Reject)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approve\": false,\n  \"note\": \"נדחה — אין צורך לבצע כרגע\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/hitl/{{action_id}}/decide",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "hitl", "{{action_id}}", "decide"]
+            },
+            "description": "דוחה פעולה ממתינה ומפרסם אירוע דחייה ל-Kafka."
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - חיפוש סמנטי (RAG - ChromaDB)",
+      "description": "אינדוקס מסמכי SPEC ב-ChromaDB (שגם מזרים אירוע ל-Kafka -> Elasticsearch) וחיפוש סמנטי וקטורי.",
+      "item": [
+        {
+          "name": "אינדוקס מסמך SPEC חדש (ChromaDB + Kafka)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('המסמך אונדקס בהצלחה ב-RAG ופורסם ל-Kafka', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const data = pm.response.json();",
+                  "    pm.expect(data.chunks_indexed).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc_id\": \"spec_microservices_001\",\n  \"title\": \"Microservices_Kafka_Elasticsearch_SPEC.md\",\n  \"project\": \"{{project}}\",\n  \"content\": \"DevWorkspace Ops Crew runs 6 FastAPI microservices behind an API Gateway, streaming domain events through Apache Kafka with real-time Elasticsearch indexing and reporting.\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/rag/ingest",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "rag", "ingest"]
+            },
+            "description": "מפרק את המסמך לחלקים (Chunks), שומר ב-ChromaDB, ומפרסם rag.document.ingested ל-Kafka כך ש-search-service מאנדקס אותו מיידית ב-Elasticsearch."
+          }
+        },
+        {
+          "name": "חיפוש סמנטי במסמכי SPEC (ChromaDB)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('החיפוש הסמנטי החזיר תוצאות', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const data = pm.response.json();",
+                  "    pm.expect(data.results).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/rag/search?q=Kafka+Elasticsearch+microservices&project={{project}}&top_k=4",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "rag", "search"],
+              "query": [
+                { "key": "q", "value": "Kafka Elasticsearch microservices" },
+                { "key": "project", "value": "{{project}}" },
+                { "key": "top_k", "value": "4" }
+              ]
+            },
+            "description": "חיפוש וקטורי סמנטי מול rag-service."
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - חיפוש טקסט מלא ודוחות (Elasticsearch + Kafka)",
+      "description": "חיפוש מהיר ב-Elasticsearch על מסמכי SPEC ועל זרם אירועי Kafka בזמן אמת, כולל דוח סיכום.",
+      "item": [
+        {
+          "name": "חיפוש מסמכי SPEC ב-Elasticsearch",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('חיפוש Elasticsearch החזיר תשובה תקינה', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const data = pm.response.json();",
+                  "    pm.expect(data).to.have.property('hits');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/search/specs?q=Kafka+Elasticsearch&project={{project}}&size=10",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "search", "specs"],
+              "query": [
+                { "key": "q", "value": "Kafka Elasticsearch" },
+                { "key": "project", "value": "{{project}}" },
+                { "key": "size", "value": "10" }
+              ]
+            },
+            "description": "חיפוש טקסט מלא (multi_match + fuzziness + highlight) באינדקס ops-specs של Elasticsearch."
+          }
+        },
+        {
+          "name": "חיפוש אירועי Kafka בזמן אמת (Audit & Events)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('חיפוש אירועי Kafka הצליח', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const data = pm.response.json();",
+                  "    pm.expect(data).to.have.property('hits');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/search/events?q=hitl&size=20",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "search", "events"],
+              "query": [
+                { "key": "q", "value": "hitl" },
+                { "key": "size", "value": "20" }
+              ]
+            },
+            "description": "מחפש באירועים שנצרכו מ-Kafka ואונדקסו בזמן אמת באינדקס ops-events ב-Elasticsearch."
+          }
+        },
+        {
+          "name": "דוח סיכום אירועים ומסמכים (Reporting)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('התקבל דוח סיכום תקין', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const data = pm.response.json();",
+                  "    pm.expect(data).to.have.property('indexed_events');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/search/reports/summary",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "search", "reports", "summary"]
+            },
+            "description": "מחזיר סיכום כמויות של מסמכים ואירועים לפי סוג אירוע."
+          }
+        },
+        {
+          "name": "אינדוקס ישיר של מסמך ל-Elasticsearch",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doc_id\": \"spec_direct_001\",\n  \"title\": \"Elasticsearch_Direct_Note.md\",\n  \"project\": \"{{project}}\",\n  \"content\": \"Direct Elasticsearch document indexing test from Postman.\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/search/specs/index",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "search", "specs", "index"]
+            },
+            "description": "אינדוקס ישיר ל-Elasticsearch (בנוסף לאינדוקס האוטומטי מ-Kafka)."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+$kind: http-request
+description: שולף את כל הפעולות בסטטוס pending ממסד הנתונים hitl_db.
+url: "{{gateway_url}}/api/v1/hitl/pending"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('התקבלה רשימת פעולות ממתינות', function () {
+          pm.response.to.have.status(200);
+          const list = pm.response.json();
+          pm.expect(list).to.be.an('array');
+          if (list.length > 0) {
+              pm.environment.set('action_id', list[0].action_id);
+          }
+      });
+    language: text/javascript
+order: 2000

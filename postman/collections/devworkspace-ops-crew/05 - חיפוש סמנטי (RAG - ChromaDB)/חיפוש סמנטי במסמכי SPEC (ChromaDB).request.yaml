@@ -1,0 +1,18 @@
+$kind: http-request
+description: חיפוש וקטורי סמנטי מול rag-service.
+url: "{{gateway_url}}/api/v1/rag/search?q=Kafka Elasticsearch microservices&project={{project}}&top_k=4"
+method: GET
+queryParams:
+  q: Kafka Elasticsearch microservices
+  project: "{{project}}"
+  top_k: "4"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('החיפוש הסמנטי החזיר תוצאות', function () {
+          pm.response.to.have.status(200);
+          const data = pm.response.json();
+          pm.expect(data.results).to.be.an('array');
+      });
+    language: text/javascript
+order: 2000

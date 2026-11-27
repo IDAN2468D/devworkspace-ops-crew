@@ -1,0 +1,7 @@
+cloudResources:
+  collections:
+    ../postman/collections/devworkspace-ops-crew: 13046260-d837def9-6ca2-4c05-9e28-f54669017640
+  environments:
+    ../postman/environments/DevWorkspace_Local.environment.yaml: 13046260-aa68d995-4099-40c1-ad23-5715947390c7
+workspace:
+  id: 4e7c0ff3-7ea4-4e8c-8d48-903f7b3f65e1

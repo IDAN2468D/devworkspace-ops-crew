@@ -1,0 +1,31 @@
+$kind: http-request
+name: הפקדת פעולה חדשה לתור האישורים (בדיקה)
+description: מפקיד פעולה חדשה לתור ה-HITL, שומר את ה-action_id אוטומטית במשתנה הסביבה, ומפרסם hitl.action.requested ל-Kafka.
+url: "{{gateway_url}}/api/v1/hitl/enqueue"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "agent_name": "GitHubDevOpsAgent",
+      "action_type": "github_issue",
+      "summary": "פתיחת Issue חדש על כישלון בדיקות CI",
+      "payload": {
+        "repo": "IDAN2468D/mcp-ai-ide-core",
+        "title": "Fix failing CI test_hitl_gate.py",
+        "body": "זוהה כישלון ב-CI לאחר PR #14. נדרש תיקון."
+      }
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('הפעולה נשמרה בתור ה-HITL ופורסם אירוע Kafka', function () {
+          pm.response.to.have.status(200);
+          const data = pm.response.json();
+          pm.expect(data.status).to.eql('pending');
+          pm.environment.set('action_id', data.action_id);
+      });
+    language: text/javascript
+order: 1000

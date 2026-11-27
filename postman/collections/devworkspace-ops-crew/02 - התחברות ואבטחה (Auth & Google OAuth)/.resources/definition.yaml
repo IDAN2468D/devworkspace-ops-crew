@@ -1,0 +1,3 @@
+$kind: collection
+description: תהליך התחברות והרשמה עם Google OAuth 2.0, הנפקת JWT ושמירת Cookie מאובטח.
+order: 2000

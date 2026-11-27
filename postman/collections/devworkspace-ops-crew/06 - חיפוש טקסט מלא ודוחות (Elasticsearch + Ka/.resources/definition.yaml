@@ -1,0 +1,4 @@
+$kind: collection
+name: 06 - חיפוש טקסט מלא ודוחות (Elasticsearch + Kafka)
+description: חיפוש מהיר ב-Elasticsearch על מסמכי SPEC ועל זרם אירועי Kafka בזמן אמת, כולל דוח סיכום.
+order: 6000

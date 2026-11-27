@@ -1,0 +1,16 @@
+$kind: http-request
+description: אינדוקס ישיר ל-Elasticsearch (בנוסף לאינדוקס האוטומטי מ-Kafka).
+url: "{{gateway_url}}/api/v1/search/specs/index"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "doc_id": "spec_direct_001",
+      "title": "Elasticsearch_Direct_Note.md",
+      "project": "{{project}}",
+      "content": "Direct Elasticsearch document indexing test from Postman."
+    }
+order: 4000

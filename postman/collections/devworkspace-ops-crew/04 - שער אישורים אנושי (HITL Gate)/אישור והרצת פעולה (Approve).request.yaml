@@ -1,0 +1,23 @@
+$kind: http-request
+description: מאשר את הפעולה, מריץ את ה-Write Handler המתאים, ומפרסם hitl.action.decided ל-Kafka.
+url: "{{gateway_url}}/api/v1/hitl/{{action_id}}/decide"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "approve": true,
+      "note": "מאושר לביצוע מיידי"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('הפעולה אושרה ובוצעה בהצלחה', function () {
+          pm.response.to.have.status(200);
+          const data = pm.response.json();
+          pm.expect(data.status).to.eql('executed');
+      });
+    language: text/javascript
+order: 4000

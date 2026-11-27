@@ -1,0 +1,5 @@
+$kind: http-request
+description: שולף פעולה ספציפית לפי action_id.
+url: "{{gateway_url}}/api/v1/hitl/{{action_id}}"
+method: GET
+order: 3000

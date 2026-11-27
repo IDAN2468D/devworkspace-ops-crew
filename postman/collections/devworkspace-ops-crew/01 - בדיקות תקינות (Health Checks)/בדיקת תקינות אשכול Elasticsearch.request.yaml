@@ -1,0 +1,14 @@
+$kind: http-request
+description: בדיקה ישירה מול Elasticsearch בפורט 9200.
+url: "{{elasticsearch_url}}/_cluster/health"
+method: GET
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Elasticsearch זמין ותקין', function () {
+          pm.response.to.have.status(200);
+      });
+    language: text/javascript
+order: 2000

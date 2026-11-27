@@ -1,0 +1,14 @@
+$kind: http-request
+description: דוחה פעולה ממתינה ומפרסם אירוע דחייה ל-Kafka.
+url: "{{gateway_url}}/api/v1/hitl/{{action_id}}/decide"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "approve": false,
+      "note": "נדחה — אין צורך לבצע כרגע"
+    }
+order: 5000

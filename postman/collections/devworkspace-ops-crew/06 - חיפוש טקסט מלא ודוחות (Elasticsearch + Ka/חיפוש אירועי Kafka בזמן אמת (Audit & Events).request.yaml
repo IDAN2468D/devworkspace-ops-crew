@@ -1,0 +1,17 @@
+$kind: http-request
+description: מחפש באירועים שנצרכו מ-Kafka ואונדקסו בזמן אמת באינדקס ops-events ב-Elasticsearch.
+url: "{{gateway_url}}/api/v1/search/events?q=hitl&size=20"
+method: GET
+queryParams:
+  q: hitl
+  size: "20"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('חיפוש אירועי Kafka הצליח', function () {
+          pm.response.to.have.status(200);
+          const data = pm.response.json();
+          pm.expect(data).to.have.property('hits');
+      });
+    language: text/javascript
+order: 2000
